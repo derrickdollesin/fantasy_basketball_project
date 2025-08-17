@@ -11,7 +11,8 @@ import random
 # get_soup(url)
 # get_roster(team_name, season)
 # get_game_data(team, opp, url)
-# def get_player_data(name, season)
+# get_player_data(name, season)
+# fantasy_score_model(player_data)
 # --------------------------------------------------------------------------- #
 
 def get_soup(url):
@@ -326,9 +327,112 @@ def get_player_data(name, season):
     reg_seas_played = (
         reg_seas_played
         .drop(
-            columns=['Team', 'Opp', 'Gtm', 'Gcar']
+            columns=['Team', 'Gtm', 'Gcar']
         )
         .reset_index(drop=True)
     )
 
+    # Base stats
+    rebounds = reg_seas_played['TRB']
+    assists = reg_seas_played['AST']
+    points = reg_seas_played['PTS'] * 0.5
+    turnovers = reg_seas_played['TOV'] * -1
+    steals = reg_seas_played['STL']
+    blocks = reg_seas_played['BLK']
+
+    # Double/Triple doubles
+    cats = ['PTS', 'TRB', 'AST', 'STL', 'BLK']
+    counts = (reg_seas_played[cats] >= 10).sum(axis=1)
+
+    reg_seas_played['double_double'] = (counts >= 2).astype(int)        # 1 point bonus
+    reg_seas_played['triple_double'] = (counts >= 3).astype(int) * 2    # 2 point bonus
+
+    # Build fantasy score
+    reg_seas_played['fantasy_score'] = (
+        rebounds
+        + assists
+        + points
+        + steals
+        + blocks
+        + turnovers
+        + reg_seas_played['double_double']
+        + reg_seas_played['triple_double']
+    )
+
+    # Optional: round for neatness
+    reg_seas_played['fantasy_score'] = reg_seas_played['fantasy_score'].round(2)
+
     return missed_reg_seas_played, reg_seas_played 
+
+# --------------------------------------------------------------------------- #
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression, Lasso, Ridge
+
+def fantasy_score_model(player_data):
+    '''
+    Build an optimal model for a player
+
+    Args:
+        player_data - Dataframe (ex call get_player_data()[1])
+
+    Returns:
+        sklearn linear_model
+        model r^2 score
+    '''
+    X = player_data.drop(columns=[
+        'Date', 'Opp', 'fantasy_score', 'URL', 'Player_NAME', 'TRB', 'AST', 'PTS', 
+        'TOV', 'STL', 'BLK', 'double_double', 'triple_double'
+    ]).values
+    y = player_data[['fantasy_score']].values
+
+    scaler = StandardScaler()
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    linreg = LinearRegression()
+    linreg.fit(X_train_scaled, y_train)
+
+    linreg_score = linreg.score(X_test_scaled, y_test)
+
+    alpha_vals = [0.1, 1.0, 10.0, 100.0, 1000.0]
+
+    ridge_scores = []
+    for alpha in alpha_vals:
+        ridge = Ridge(alpha=alpha)
+        ridge.fit(X_train_scaled, y_train)
+        y_pred = ridge.predict(X_test)
+        ridge_scores.append(ridge.score(X_test_scaled, y_test))
+
+    lasso_scores = []
+    for alpha in alpha_vals:
+        ridge = Lasso(alpha=alpha)
+        ridge.fit(X_train_scaled, y_train)
+        y_pred = ridge.predict(X_test)
+        lasso_scores.append(ridge.score(X_test_scaled, y_test))
+
+    scores_list = [[LinearRegression(), np.nan, linreg_score]] + \
+    [[Ridge(), alpha, score] for alpha, score in zip(alpha_vals, ridge_scores)] + \
+    [[Lasso(), alpha, score] for alpha, score in zip(alpha_vals, lasso_scores)]
+
+    model_selection_df = (
+        pd
+        .DataFrame(scores_list, columns=['model', 'alpha', 'score'])
+        .sort_values('score', ascending=False)
+    )
+
+    final_model_data = model_selection_df.iloc[0]
+    final_model = final_model_data['model']
+    final_alpha = final_model_data['alpha']
+
+    if final_alpha != np.nan:
+        final_model.set_params(alpha=final_alpha)
+
+    final_model.fit(X_train_scaled, y_train)
+
+    return final_model, final_model_data['score']
