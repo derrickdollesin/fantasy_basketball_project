@@ -435,3 +435,93 @@ def fantasy_score_model(player_data):
     final_model.fit(X_train_scaled, y_train)
 
     return final_model, final_model_data['score']
+
+# --------------------------------------------------------------------------- #
+
+def create_models(player_data):
+    curr_team = player_data['Team'][0]
+
+    nba_teams = [
+        "ATL", "BOS", "BRK", "CHI", "CLE", "DAL", "DEN", "DET", 
+        "GSW", "HOU", "IND", "LAC", "LAL", "MEM", "MIA", "MIL", 
+        "MIN", "NOP", "NYK", "OKC", "ORL", "PHI", "PHO", "POR", 
+        "SAC", "SAS", "TOR", "UTA", "WAS", "CHO"
+    ]
+
+    nba_teams.remove(curr_team)
+
+    to_remove = [
+        'Date', 'Opp', 'URL', 'Player_NAME', 'double_double', 'triple_double', 
+        'Team', 'fantasy_score', 'Result' # result is classification
+    ]
+
+    to_remove = to_remove + nba_teams
+
+    features_to_model = player_data.drop(columns=to_remove).columns.to_list()
+
+    models = []
+    scores = []
+    alphas = []
+    for feature in features_to_model:
+        X = player_data[features_to_model].drop(columns=f'{feature}').values
+        y = player_data[f'{feature}'].values
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        
+        scaler = StandardScaler()
+
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        linreg = LinearRegression()
+        linreg.fit(X_train_scaled, y_train)
+
+        linreg_score = linreg.score(X_test_scaled, y_test) 
+
+        alpha_vals = [0.1, 1.0, 10.0, 100.0, 1000.0]
+
+        ridge_scores = []
+        for alpha in alpha_vals:
+            ridge = Ridge(alpha=alpha)
+            ridge.fit(X_train_scaled, y_train)
+            ridge_scores.append(ridge.score(X_test_scaled, y_test))
+
+        lasso_scores = []
+        for alpha in alpha_vals:
+            ridge = Lasso(alpha=alpha)
+            ridge.fit(X_train_scaled, y_train)
+            lasso_scores.append(ridge.score(X_test_scaled, y_test))
+
+        scores_list = [[LinearRegression(), np.nan, linreg_score]] + \
+        [[Ridge(), alpha, score] for alpha, score in zip(alpha_vals, ridge_scores)] + \
+        [[Lasso(), alpha, score] for alpha, score in zip(alpha_vals, lasso_scores)]
+
+        model_selection_df = (
+            pd
+            .DataFrame(scores_list, columns=['model', 'alpha', 'score'])
+            .sort_values('score', ascending=False)
+        )
+
+        model_selection_df = model_selection_df[model_selection_df['score'] != 1]
+
+        final_model_data = model_selection_df.iloc[0]
+        final_model = final_model_data['model']
+        final_alpha = final_model_data['alpha']
+
+        if type(final_alpha) == float:
+            final_model.set_params(alpha=final_alpha)
+
+        final_model.fit(X_train_scaled, y_train)
+
+        models.append(final_model)
+        scores.append(final_model_data['score'])
+        alphas.append(final_alpha)
+
+    final_models = pd.DataFrame({
+        'Feature': features_to_model,
+        'Model': models,
+        'Score': scores,
+        'Alphas': alphas
+    })
+
+    return final_models
