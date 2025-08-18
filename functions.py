@@ -327,7 +327,7 @@ def get_player_data(name, season):
     reg_seas_played = (
         reg_seas_played
         .drop(
-            columns=['Team', 'Gtm', 'Gcar']
+            columns=['Gtm', 'Gcar']
         )
         .reset_index(drop=True)
     )
@@ -381,6 +381,7 @@ def fantasy_score_model(player_data):
         sklearn linear_model
         model r^2 score
     '''
+
     X = player_data.drop(columns=[
         'Date', 'Opp', 'fantasy_score', 'URL', 'Player_NAME', 'TRB', 'AST', 'PTS', 
         'TOV', 'STL', 'BLK', 'double_double', 'triple_double'
@@ -406,14 +407,12 @@ def fantasy_score_model(player_data):
     for alpha in alpha_vals:
         ridge = Ridge(alpha=alpha)
         ridge.fit(X_train_scaled, y_train)
-        y_pred = ridge.predict(X_test)
         ridge_scores.append(ridge.score(X_test_scaled, y_test))
 
     lasso_scores = []
     for alpha in alpha_vals:
         ridge = Lasso(alpha=alpha)
         ridge.fit(X_train_scaled, y_train)
-        y_pred = ridge.predict(X_test)
         lasso_scores.append(ridge.score(X_test_scaled, y_test))
 
     scores_list = [[LinearRegression(), np.nan, linreg_score]] + \
