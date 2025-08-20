@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import urllib.request
 import time
 import random
+import matplotlib.pyplot as plt
 
 # --------------------------------------------------------------------------- #
 # get_soup(url)
@@ -382,11 +383,16 @@ def predict_fantasy_score(player_data):
         sklearn linear_model
         model r^2 score
     '''
+    cols_to_remove = [
+        'Date', 'Opp', 'fantasy_score', 'URL', 'Player_NAME', 'PTS', 
+        'double_double', 'triple_double', 'Team'
+    ]
 
-    X = player_data.drop(columns=[
-        'Date', 'Opp', 'fantasy_score', 'URL', 'Player_NAME', 'TRB', 'AST', 'PTS', 
-        'TOV', 'STL', 'BLK', 'double_double', 'triple_double', 'Team'
-    ]).values
+    # remove_perc = [col for col in player_data if '%' not in col]
+
+    # cols_to_remove = cols_to_remove + remove_perc
+
+    X = player_data.drop(columns=cols_to_remove).values
     y = player_data[['fantasy_score']].values
 
     scaler = StandardScaler()
@@ -430,10 +436,17 @@ def predict_fantasy_score(player_data):
     final_model = final_model_data['model']
     final_alpha = final_model_data['alpha']
 
-    if final_alpha != np.nan:
+    if isinstance(final_alpha, float) and not pd.isna(final_alpha):
         final_model.set_params(alpha=final_alpha)
 
     final_model.fit(X_train_scaled, y_train)
+
+    names = player_data.drop(columns=cols_to_remove).columns
+    model_coefs = final_model.coef_
+    plt.figure(figsize=(16, 9))
+    plt.bar(names, model_coefs)
+    plt.xticks(rotation=45)
+    plt.show()
 
     predictions = final_model.predict(X_test_scaled)
 
