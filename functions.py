@@ -52,28 +52,20 @@ def get_roster(team_name, season):
         roster - Dataframe
     '''
     ### call get_html to request data from url
-    soup = get_soup(f'https://www.basketball-reference.com/teams/{team_name}/{season}.html')
+    soup = get_soup(
+        f'https://www.basketball-reference.com/teams/{team_name}/{season}.html'
+    )
 
     ### extract player names from basketball-reference
-    cells = soup.select('td[data-stat="player"]')
-    players = [c.get_text(strip=True) for c in cells]
+    team = soup.select('td[data-stat="player"],td[data-stat="pos"]')
+    roster_data = [data.get_text(strip=True) for data in team]
 
-    ### extract player position from basketball-reference
-    cells = soup.select('td[data-stat="pos"][csk="1"], '
-                        'td[data-stat="pos"][csk="2"], '
-                        'td[data-stat="pos"][csk="3"], '
-                        'td[data-stat="pos"][csk="4"], '
-                        'td[data-stat="pos"][csk="5"]')
-    pos = [c.get_text(strip=True) for c in cells]
+    roster = {'players': [], 'positions': []}
+    for i in range(0, len(roster_data), 2):
+        roster['players'].append(roster_data[i])
+        roster['positions'].append(roster_data[i + 1])
 
-    ### build roster
-    roster = pd.DataFrame({
-        'Player_NAME': players,
-        'Player_POSITION': pos
-    })
-
-    ### add team name 
-    roster['Player_TEAM'] = team_name
+    roster = pd.DataFrame(roster)
 
     return roster
 
@@ -451,5 +443,52 @@ def predict_fantasy_score(player_data):
     predictions = final_model.predict(X_test_scaled)
 
     return predictions
+
+# --------------------------------------------------------------------------- #
+
+def get_team_data(season):
+    url = f'https://www.basketball-reference.com/leagues/NBA_{season}.html'
+    soup = get_soup(url)
+
+    east_table = soup.select('table[id="confs_standings_E"]')
+    west_table = soup.select('table[id="confs_standings_W"]')
+
+    east_col_names = []
+    for i in east_table[0].select('th[scope="col"]'):
+        east_col_names.append(i.get_text())
+
+    west_col_names = []
+    for i in east_table[0].select('th[scope="col"]'):
+        west_col_names.append(i.get_text())
+
+    east_data = east_col_names
+    for i in east_table[0].select('th[scope="row"], td'):
+        east_data.append(i.get_text())
+
+    east_table = []
+    BATCH_SIZE = 8
+    for i in range(0, len(east_data), BATCH_SIZE):
+        curr_data = east_data[i:i+BATCH_SIZE]
+        east_table.append(curr_data)
+
+    west_data = west_col_names
+    for i in west_table[0].select('th[scope="row"], td'):
+        west_data.append(i.get_text())
+
+    west_table = []
+    BATCH_SIZE = 8
+    for i in range(0, len(west_data), BATCH_SIZE):
+        curr_data = west_data[i:i+BATCH_SIZE]
+        west_table.append(curr_data)
+
+    west_df = pd.DataFrame(west_table)
+    west_df.columns = west_df.iloc[0]
+    west_df = west_df.iloc[1:]
+
+    east_df = pd.DataFrame(east_table)
+    east_df.columns = east_df.iloc[0]
+    east_df = east_df.iloc[1:]
+
+    return west_df, east_df
 
 # --------------------------------------------------------------------------- #
