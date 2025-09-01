@@ -33,15 +33,15 @@ import pandas as pd
 #     "id": [24, 30, 25]
 # })
 
-# # Connect to SQLite DB (creates table if not exists)
-# with sqlite3.connect("nba.db") as conn:
-#     # Write DataFrame to a table called "players"
-#     df.to_sql("players", conn, if_exists="append", index=False)
+# Connect to SQLite DB (creates table if not exists)
+with sqlite3.connect("nba.db") as conn:
+    # Write DataFrame to a table called "players"
+    df.to_sql("players", conn, if_exists="append", index=False)
 
-#     # Verify by reading back
-#     check = pd.read_sql("SELECT * FROM players", conn)
+    # Verify by reading back
+    check = pd.read_sql("SELECT * FROM players", conn)
 
-# print(check)
+print(check)
 
 ### Get team data
 okc = get_roster('OKC', '2026')
@@ -57,7 +57,7 @@ east_df.columns =[col.replace('/', '') if '/' in col else col.replace("%", 'perc
 west_df = west_df.rename(columns={'Western Conference': 'team_name'})
 west_df.columns = [col.replace('/', '') if '/' in col else col.replace("%", 'perc') if '%' in col else  col for col in west_df.columns]
 
-east_df = east_df.rename(columns={'WL%':'WLperc'})
+east_df = east_df.rename(columns={})
 west_df = west_df.rename(columns={'WL%':'WLperc', 'Eastern Conference': 'team_name'})
 
 print(west_df)
