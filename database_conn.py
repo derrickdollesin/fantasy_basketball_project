@@ -1,17 +1,12 @@
 from __future__ import annotations
+import pandas as pd
 import sqlite3
 from contextlib import contextmanager
 from typing import Any, Iterable, List, Optional, Sequence, Tuple, Dict, Union
 
-try:
-    import pandas as pd  # optional
-except Exception:
-    pd = None
-
-
 class SQLiteClient:
     """
-    Simple OOP helper for SQLite databases (perfect for USB paths like D:\\nba.db).
+    Simple OOP helper for SQLite databases 
 
     Features:
     - Safe parameterized queries (avoid SQL injection)
@@ -163,6 +158,27 @@ class SQLiteClient:
             f"ON CONFLICT({', '.join(conflict_cols)}) DO UPDATE SET {assignments};"
         )
         self.execute(sql, [row[c] for c in cols])
+
+    def insert_dataframe(self, df: pd.DataFrame, table: str) -> None:
+        """
+        Insert all rows from a pandas DataFrame into a table.
+        Equivalent to multiple INSERT statements.
+        """
+        rows = df.to_dict(orient="records")  # list of dicts: [{"col": val, ...}, ...]
+        for row in rows:
+            self.insert(table, row)
+
+    def upsert_dataframe(self, df: pd.DataFrame, table: str, conflict_cols: Union[str, Sequence[str]]) -> None:
+        """
+        Upsert all rows from a pandas DataFrame into a table.
+        Requires a UNIQUE or PRIMARY KEY constraint on conflict_cols.
+        """
+        if isinstance(conflict_cols, str):
+            conflict_cols = [conflict_cols]
+
+        rows = df.to_dict(orient="records")
+        for row in rows:
+            self.upsert(table, row, conflict_cols)
 
     # ---------- Pandas helpers ----------
     def to_dataframe(self, sql: str, params: Sequence[Any] | None = None):
