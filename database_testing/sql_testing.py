@@ -2,7 +2,7 @@ import sqlite3
 import sys
 
 sys.path.append(r'C:\Users\DerDo\Desktop\fantasy_basketball_project')
-from functions import *
+from old_functions import *
 
 conn = sqlite3.connect("nba.db")
 cursor = conn.cursor()
