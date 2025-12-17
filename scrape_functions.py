@@ -43,7 +43,7 @@ def get_soup(url):
 
 ### Available Functions
 ###
-# all_team_historical_data(team)
+# all_team_historical_data()
 # team_historical_data(team)
 # team_per36_data(team, year)
 # team_avg_data(team, year)
@@ -63,10 +63,10 @@ class Scrape_Functions:
 
     def __init__(self):
         self.teams = [
-            "ATL", "BOS", "BRK", "CHI", "CLE", "DAL", "DEN", "DET", 
+            "ATL", "BOS", "NJN", "CHI", "CLE", "DAL", "DEN", "DET", 
             "GSW", "HOU", "IND", "LAC", "LAL", "MEM", "MIA", "MIL", 
-            "MIN", "NOP", "NYK", "OKC", "ORL", "PHI", "PHO", "POR", 
-            "SAC", "SAS", "TOR", "UTA", "WAS", "CHO"
+            "MIN", "NOH", "NYK", "OKC", "ORL", "PHI", "PHO", "POR", 
+            "SAC", "SAS", "TOR", "UTA", "WAS", "CHA"
         ]
 
 # --------------------------------------------------------------------------- #
@@ -551,7 +551,7 @@ class Scrape_Functions:
     def team_historical_data(self, team):
 
         if team not in self.teams:
-            print('Team Not Found')
+            print(f'Team {team} Not Found')
             return 
 
         soup = get_soup(f'https://www.basketball-reference.com/teams/{team}/')
@@ -559,7 +559,7 @@ class Scrape_Functions:
         table = soup.select_one(f'table#{team}')
 
         if not table:
-            print('No Data Found')
+            print(f'No Data Found ({team})')
             return
 
         cols = [
@@ -587,7 +587,7 @@ class Scrape_Functions:
     def team_season_data(self, team, year):
 
         if team not in self.teams:
-            print('Team Not Found')
+            print(f'Team {team} Not Found')
             return 
         
         soup = get_soup(
@@ -597,7 +597,7 @@ class Scrape_Functions:
         table = soup.select_one('table#roster')
 
         if not table:
-            print('No Data Found')
+            print(f'No Data Found ({team})')
             return
 
         cols = [
@@ -625,7 +625,7 @@ class Scrape_Functions:
     def team_avg_data(self, team, year):
 
         if team not in self.teams:
-            print('Team Not Found')
+            print(f'Team {team} Not Found')
             return
 
         soup = get_soup(
@@ -635,7 +635,7 @@ class Scrape_Functions:
         table = soup.select_one('table#per_game_stats')
 
         if not table:
-            print('No Data Found')
+            print(f'No Data Found ({team})')
             return 
 
         cols = [col.get_text(strip=True) for col in table.select('th[scope="col"]')]
@@ -661,7 +661,7 @@ class Scrape_Functions:
     def team_per36_data(self, team, year):
 
         if team not in self.teams:
-            print('Team Not Found')
+            print(f'Team {team} Not Found')
             return
         
         soup = get_soup(
@@ -671,7 +671,7 @@ class Scrape_Functions:
         table = soup.select_one('table#per_minute_stats')
 
         if not table:
-            print('No Data Found')
+            print(f'No Data Found ({team})')
             return 
 
         cols = [col.get_text(strip=True) for col in table.select('th[scope="col"]')]
